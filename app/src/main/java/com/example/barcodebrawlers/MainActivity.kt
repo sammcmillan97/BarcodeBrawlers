@@ -7,17 +7,24 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -26,16 +33,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.barcodebrawlers.database.AppDatabase
+import com.example.barcodebrawlers.ui.theme.BarcodeBrawlersTheme
 import com.google.zxing.integration.android.IntentIntegrator
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+
 import kotlin.math.abs
 
 class MainActivity : ComponentActivity() {
 
-    private val db = AppDatabase.DatabaseProvider.getDatabase(this)
+    private lateinit var db: AppDatabase
+    private var collectedBrawlersCount by mutableStateOf(0)
     private val brawlers = listOf<Brawler>(
         Brawler(
             "Space Pirate",
@@ -43,15 +49,17 @@ class MainActivity : ComponentActivity() {
             "A pirate roaming the vast expanse of the universe.",
             6,
             6,
-            6
+            6,
+            imageResId = R.drawable.spacepirate
         ),
         Brawler(
             "Desert Duelist",
             2,
-            "A swift swordfighter trained in the scorching sands.",
+            "A swift sword fighter trained in the scorching sands.",
             6,
             7,
-            4
+            4,
+            imageResId = R.drawable.desertduelist
         ),
         Brawler(
             "Forest Phantom",
@@ -59,7 +67,8 @@ class MainActivity : ComponentActivity() {
             "An elusive archer who blends with the woods.",
             5,
             8,
-            5
+            5,
+            imageResId = R.drawable.forestphantom
         ),
         Brawler(
             "Swamp Sorcerer",
@@ -67,15 +76,17 @@ class MainActivity : ComponentActivity() {
             "A mage drawing power from marshland mysteries.",
             4,
             5,
-            9
+            9,
+            imageResId = R.drawable.swampsorcerer
         ),
         Brawler(
-            "Island Invader",
+            "Tribal Warrior",
             5,
             "A warrior adept in naval combat and amphibious ambushes.",
             7,
             6,
-            3
+            3,
+            imageResId = R.drawable.tribalwarriror
         ),
         Brawler(
             "Tundra Tracker",
@@ -83,7 +94,8 @@ class MainActivity : ComponentActivity() {
             "A survivalist skilled in arctic ambushes.",
             6,
             7,
-            4
+            4,
+            imageResId = R.drawable.tundratracker
         ),
         Brawler(
             "Canyon Crusader",
@@ -91,7 +103,8 @@ class MainActivity : ComponentActivity() {
             "A vigilant guardian of the rocky valleys.",
             7,
             6,
-            5
+            5,
+            imageResId = R.drawable.canyoncrusader
         ),
         Brawler(
             "Jungle Juggernaut",
@@ -99,7 +112,8 @@ class MainActivity : ComponentActivity() {
             "A mighty brawler skilled in navigating dense rainforests.",
             8,
             5,
-            4
+            4,
+            imageResId = R.drawable.junglejuggernaut
         ),
         Brawler(
             "Plains Pathfinder",
@@ -107,7 +121,8 @@ class MainActivity : ComponentActivity() {
             "A nimble scout known for tracking on open terrains.",
             5,
             8,
-            5
+            5,
+            imageResId = R.drawable.plainspathfinder
         ),
         Brawler(
             "Cave Crawler",
@@ -115,7 +130,8 @@ class MainActivity : ComponentActivity() {
             "A stealthy expert of subterranean combat.",
             6,
             7,
-            4
+            4,
+            imageResId = R.drawable.cavecrawler
         )
     )
 
@@ -142,20 +158,26 @@ class MainActivity : ComponentActivity() {
 
     }
 
+    private fun deleteAll() {
+        collectedBrawlersCount = db.brawlerDao().getBrawlersCount()
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         val scanResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (scanResult != null) {
             if (scanResult.contents == null) {
-                Toast.makeText(this, "Cancelled", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.cancelled), Toast.LENGTH_LONG).show()
             } else {
                 val barcodeData = scanResult.contents
                 val transformedNumber = transformBarcodeToNumber(barcodeData)
                 if (transformedNumber < 11) {
                     val brawler = brawlers[transformedNumber]
                     val brawlerString = brawler.toString()
-                    Toast.makeText(this, "You found a $brawlerString", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.brawler_found, brawlerString), Toast.LENGTH_LONG).show()
+                    db.brawlerDao().insert(brawler.toEntity())
+                    collectedBrawlersCount = db.brawlerDao().getBrawlersCount()
                 } else {
-                    Toast.makeText(this, "No brawlers found", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.no_brawlers_found), Toast.LENGTH_LONG).show()
                 }
             }
         } else {
@@ -171,48 +193,74 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        db = AppDatabase.DatabaseProvider.getDatabase(this)
+        collectedBrawlersCount = db.brawlerDao().getBrawlersCount()
         setContent {
-            MyApp(checkAndRequestCameraPermission = ::checkAndRequestCameraPermission)
+            MyApp(
+                db,
+                collectedBrawlersCount,
+                checkAndRequestCameraPermission = ::checkAndRequestCameraPermission,
+                deleteAll = ::deleteAll
+            )
         }
     }
 }
 
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
-fun MyApp(checkAndRequestCameraPermission: () -> Unit) {
+fun MyApp(db: AppDatabase, collectedBrawlersCount: Int, checkAndRequestCameraPermission: () -> Unit, deleteAll: () -> Unit) {
+    val darkThemeEnabled = remember { mutableStateOf(false) } // Keep this state here
     val navController = rememberNavController()
-    val items = listOf(BottomNavItem.Home, BottomNavItem.Scan, BottomNavItem.Collection)
+    val items = listOf(BottomNavItem.Home, BottomNavItem.Collection, BottomNavItem.Settings)
+    BarcodeBrawlersTheme(
+        darkTheme = darkThemeEnabled.value,  // Use this to set theme
+        content = {
 
-    Scaffold(
-        bottomBar = {
-            BottomNavigation {
-                val currentRoute = currentRoute(navController)
-                items.forEach { item ->
-                    BottomNavigationItem(
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
-                        selected = currentRoute == item.route,
-                        onClick = {
-                            navController.navigate(item.route) {
-                                // Prevent multiple copies of the same destination
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(stringResource(id = R.string.app_name), textAlign = TextAlign.Start)
                             }
-                        }
+                        },
                     )
+                },
+                bottomBar = {
+                    BottomNavigation {
+                        val currentRoute = currentRoute(navController)
+                        items.forEach { item ->
+                            BottomNavigationItem(
+                                icon = { Icon(item.icon, contentDescription = stringResource(id = item.labelResource)) },
+                                label = { Text(stringResource(id = item.labelResource)) },
+                                selected = currentRoute == item.route,
+                                onClick = {
+                                    navController.navigate(item.route) {
+                                        // Prevent multiple copies of the same destination
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            ) {
+                NavHost(navController, startDestination = BottomNavItem.Home.route) {
+                    composable(BottomNavItem.Home.route) { Home(navController, collectedBrawlersCount, onScanClick = checkAndRequestCameraPermission) }
+                    composable(BottomNavItem.Collection.route) { Collection(navController, db) }
+                    composable(BottomNavItem.Settings.route) { SettingsScreen(darkThemeEnabled, db, deleteAll) }
                 }
             }
         }
-    ) {
-        NavHost(navController, startDestination = BottomNavItem.Home.route) {
-            composable(BottomNavItem.Home.route) { Home(navController) }
-            composable(BottomNavItem.Scan.route) { Scan(navController, onScanClick = checkAndRequestCameraPermission) }
-            composable(BottomNavItem.Collection.route) { Collection(navController) }
-        }
-    }
+    )
 }
 
 @Composable
@@ -222,20 +270,110 @@ fun currentRoute(navController: NavController): String? {
 }
 
 
-sealed class BottomNavItem(val route: String, val label: String, val icon: ImageVector) {
-    object Home : BottomNavItem("home", "Home", Icons.Default.Home)
-    object Scan : BottomNavItem("scan", "Scan", Icons.Default.Add)
-    object Collection : BottomNavItem("collection", "Collection", Icons.Default.List)
+sealed class BottomNavItem(val route: String, val labelResource: Int, val icon: ImageVector) {
+    object Home : BottomNavItem("home", R.string.home, Icons.Default.Home)
+    object Collection : BottomNavItem("collection", R.string.collection, Icons.Default.List)
+    object Settings : BottomNavItem("setting", R.string.settings, Icons.Default.Settings)
 }
 
 @Composable
-fun Home(navController: NavController) {
+fun Home(navController: NavController, collectedBrawlersCount: Int, onScanClick: () -> Unit) {
+    val totalBrawlers = 10  // Total number of brawlers that can be collected
+    val targetProgress = collectedBrawlersCount.toFloat() / totalBrawlers
+
+    // State for controlling the start of the animation
+    val startAnimation = remember { mutableStateOf(false) }
+
+    // As soon as this Composable gets composed (is on screen), the animation will start
+    LaunchedEffect(key1 = Unit) {
+        startAnimation.value = true
+    }
+
+    // Animate progress only if startAnimation is true
+    val animatedProgress by animateFloatAsState(
+        targetValue = if (startAnimation.value) targetProgress else 0f,
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing)
+    )
+
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Button(
+            onClick = onScanClick,
+        ) {
+            Text(
+                text = stringResource(id = R.string.scan)
+            )
+        }
+        // ... Other components
+
+        LinearProgressIndicator(
+            progress = animatedProgress,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .padding(8.dp)
+        )
+        Spacer(modifier = Modifier.height(30.dp))
+        Text(
+            text = stringResource(
+                id = R.string.collected_brawlers,
+                collectedBrawlersCount,
+                totalBrawlers
+            )
+        )
     }
 }
 
+@Composable
+fun SettingsScreen(
+    darkThemeEnabled: MutableState<Boolean>,
+    db: AppDatabase,
+    deleteAll: () -> Unit, ) {
+    var inputText by remember { mutableStateOf("") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(text = stringResource(id = R.string.settings), style = TextStyle(fontSize = 30.sp))
+        ThemeToggleSwitch(
+            isDarkTheme = darkThemeEnabled.value,
+            onThemeChange = { darkThemeEnabled.value = it }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        TextField(
+            value = inputText,
+            onValueChange = { inputText = it },
+            label = { Text("Enter 'delete' to confirm") }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = { db.brawlerDao().deleteAll()
+                        deleteAll()},
+            enabled = inputText == "delete"
+        ) {
+            Text(text = stringResource(id = R.string.delete_all))
+        }
+    }
+}
 
+@Composable
+fun ThemeToggleSwitch(
+    isDarkTheme: Boolean,
+    onThemeChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.padding(16.dp)
+    ) {
+        Text("Dark Theme")
+        Switch(
+            checked = isDarkTheme,
+            onCheckedChange = onThemeChange
+        )
+    }
+}

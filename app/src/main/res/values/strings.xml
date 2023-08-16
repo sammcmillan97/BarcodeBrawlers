@@ -1,3 +1,17 @@
 <resources>
-    <string name="app_name">BarcodeBrawlers</string>
+    <string name="app_name">Barcode Brawlers</string>
+    <string name="home">Home</string>
+    <string name="scan">Find Brawlers</string>
+    <string name="collection">Collection</string>
+    <string name="settings">Settings</string>
+    <string name="cancelled">Cancelled</string>
+    <string name="brawler_found">You found a %1$s</string>
+    <string name="no_brawlers_found">No brawlers found</string>
+    <string name="Description">Description</string>
+    <string name="Strength">Strength</string>
+    <string name="Agility">Agility</string>
+    <string name="Intelligence">Intelligence</string>
+    <string name="collected_brawlers">Collected %1$d of %2$d Brawlers</string>
+    <string name="dark_mode">Dark Theme</string>
+    <string name="delete_all">Delete All Brawlers</string>
 </resources>

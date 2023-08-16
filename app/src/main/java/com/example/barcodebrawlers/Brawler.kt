@@ -7,7 +7,9 @@ class Brawler (val name: String,
                val Description: String,
                val Strength: Int,
                val Agility: Int,
-               val Intelligence: Int) {
+               val Intelligence: Int,
+               val imageResId: Int
+) {
     override fun toString() = name
 
     fun toEntity(): BrawlerEntity {
@@ -17,7 +19,8 @@ class Brawler (val name: String,
             description = this.Description,
             strength = this.Strength,
             agility = this.Agility,
-            intelligence = this.Intelligence
+            intelligence = this.Intelligence,
+            imageResId = this.imageResId
         )
     }
 }

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import com.example.barcodebrawlers.dao.BrawlerDao
 import com.example.barcodebrawlers.entities.BrawlerEntity
 
-@Database(entities = [BrawlerEntity::class], version = 1)
+@Database(entities = [BrawlerEntity::class], version = 2)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun brawlerDao(): BrawlerDao
@@ -22,6 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java, "brawler-database"
                 )
                     .allowMainThreadQueries()
+                    .fallbackToDestructiveMigration()
                     .build()
             }
             return database!!

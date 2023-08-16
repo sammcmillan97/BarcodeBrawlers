@@ -1,5 +1,6 @@
 package com.example.barcodebrawlers.dao
 
+import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -17,4 +18,10 @@ interface BrawlerDao {
 
     @Query("DELETE FROM brawlers WHERE ID = :id")
     fun delete(id: Int)
+
+    @Query("DELETE FROM brawlers")
+    fun deleteAll()
+
+    @Query("SELECT COUNT(*) FROM brawlers")
+    fun getBrawlersCount(): Int
 }

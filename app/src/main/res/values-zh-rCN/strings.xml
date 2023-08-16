@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">条形码格斗</string>
+    <string name="home">首页</string>
+    <string name="scan">捕获争吵者</string>
+    <string name="collection">集合</string>
+    <string name="settings">设置</string>
+    <string name="cancelled">已取消</string>
+    <string name="brawler_found">你找到了一个 %1$s</string>
+    <string name="no_brawlers_found">找不到格斗者</string>
+    <string name="Description">描述</string>
+    <string name="Strength">力量</string>
+    <string name="Agility">敏捷</string>
+    <string name="Intelligence">智力</string>
+    <string name="collected_brawlers">已收集 %1$d 个争吵者，共 %2$d 个</string>
+    <string name="dark_mode">深色主题</string>
+    <string name="delete_all">删除所有争吵者</string>
+</resources>

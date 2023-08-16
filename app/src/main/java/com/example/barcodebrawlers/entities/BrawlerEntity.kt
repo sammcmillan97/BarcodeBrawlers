@@ -10,5 +10,6 @@ data class BrawlerEntity(
     val description: String,
     val strength: Int,
     val agility: Int,
-    val intelligence: Int
+    val intelligence: Int,
+    val imageResId: Int
 )
