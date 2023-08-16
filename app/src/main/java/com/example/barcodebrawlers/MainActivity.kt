@@ -3,7 +3,11 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.ToneGenerator
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +23,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -42,6 +47,9 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var db: AppDatabase
     private var collectedBrawlersCount by mutableStateOf(0)
+    private lateinit var successSound: MediaPlayer
+    private lateinit var failureSound: MediaPlayer
+
     private val brawlers = listOf<Brawler>(
         Brawler(
             "Space Pirate",
@@ -154,6 +162,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startBarcodeScanning() {
         val integrator = IntentIntegrator(this)
+        integrator.setBeepEnabled(false)
         integrator.initiateScan()
 
     }
@@ -170,19 +179,29 @@ class MainActivity : ComponentActivity() {
             } else {
                 val barcodeData = scanResult.contents
                 val transformedNumber = transformBarcodeToNumber(barcodeData)
-                if (transformedNumber < 11) {
+                if (transformedNumber < 10) {
+                    Log.d("information", transformedNumber.toString())
+                    successSound.start()
                     val brawler = brawlers[transformedNumber]
                     val brawlerString = brawler.toString()
+                    Log.d("information", brawlerString)
                     Toast.makeText(this, getString(R.string.brawler_found, brawlerString), Toast.LENGTH_LONG).show()
                     db.brawlerDao().insert(brawler.toEntity())
                     collectedBrawlersCount = db.brawlerDao().getBrawlersCount()
                 } else {
                     Toast.makeText(this, getString(R.string.no_brawlers_found), Toast.LENGTH_LONG).show()
+                    failureSound.start()
                 }
             }
         } else {
             super.onActivityResult(requestCode, resultCode, data)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        successSound.release()
+        failureSound.release()
     }
 
     fun transformBarcodeToNumber(barcode: String): Int {
@@ -195,6 +214,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         db = AppDatabase.DatabaseProvider.getDatabase(this)
+        successSound = MediaPlayer.create(this, R.raw.success_sound)
+        failureSound = MediaPlayer.create(this, R.raw.failure_sound)
         collectedBrawlersCount = db.brawlerDao().getBrawlersCount()
         setContent {
             MyApp(
@@ -284,7 +305,7 @@ fun Home(navController: NavController, collectedBrawlersCount: Int, onScanClick:
     // State for controlling the start of the animation
     val startAnimation = remember { mutableStateOf(false) }
 
-    // As soon as this Composable gets composed (is on screen), the animation will start
+
     LaunchedEffect(key1 = Unit) {
         startAnimation.value = true
     }
@@ -333,31 +354,78 @@ fun Home(navController: NavController, collectedBrawlersCount: Int, onScanClick:
 fun SettingsScreen(
     darkThemeEnabled: MutableState<Boolean>,
     db: AppDatabase,
-    deleteAll: () -> Unit, ) {
+    deleteAll: () -> Unit,
+) {
     var inputText by remember { mutableStateOf("") }
+    var isDialogVisible by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(text = stringResource(id = R.string.settings), style = TextStyle(fontSize = 30.sp))
+        Text(
+            text = stringResource(id = R.string.settings),
+            style = TextStyle(fontSize = 30.sp)
+        )
+
+        Divider(
+            color = Color.Gray,
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         ThemeToggleSwitch(
             isDarkTheme = darkThemeEnabled.value,
             onThemeChange = { darkThemeEnabled.value = it }
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        TextField(
-            value = inputText,
-            onValueChange = { inputText = it },
-            label = { Text("Enter 'delete' to confirm") }
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+
+        // Delete All button to show the dialog
         Button(
-            onClick = { db.brawlerDao().deleteAll()
-                        deleteAll()},
-            enabled = inputText == "delete"
+            onClick = { isDialogVisible = true }
         ) {
             Text(text = stringResource(id = R.string.delete_all))
+        }
+
+        // Dialog to confirm the deletion
+        if (isDialogVisible) {
+            AlertDialog(
+                onDismissRequest = { isDialogVisible = false },
+                title = { Text("Delete All Confirmation") },
+                text = {
+                    TextField(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        label = { Text("Enter 'delete' to confirm") }
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (inputText == "delete") {
+                                db.brawlerDao().deleteAll()
+                                deleteAll()
+                                inputText = ""
+                                isDialogVisible = false
+                            }
+                        },
+                        enabled = inputText == "delete"
+                    ) {
+                        Text("Confirm")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            isDialogVisible = false
+                            inputText = ""
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
@@ -368,7 +436,8 @@ fun ThemeToggleSwitch(
     onThemeChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier.padding(16.dp)
+        modifier = Modifier.padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text("Dark Theme")
         Switch(

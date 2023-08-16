@@ -162,7 +162,7 @@ fun BrawlerListItemLandscape(brawler: BrawlerEntity) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Image Section
-        LoadImageFromResources(resId = brawler.imageResId, imageSize = 100)
+        LoadImageFromResources(resId = brawler.imageResId, imageSize = 150)
         Spacer(modifier = Modifier.width(16.dp))
 
         // Title Section
