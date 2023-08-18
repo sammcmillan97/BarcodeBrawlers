@@ -3,9 +3,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioManager
 import android.media.MediaPlayer
-import android.media.ToneGenerator
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -180,11 +178,9 @@ class MainActivity : ComponentActivity() {
                 val barcodeData = scanResult.contents
                 val transformedNumber = transformBarcodeToNumber(barcodeData)
                 if (transformedNumber < 10) {
-                    Log.d("information", transformedNumber.toString())
                     successSound.start()
                     val brawler = brawlers[transformedNumber]
                     val brawlerString = brawler.toString()
-                    Log.d("information", brawlerString)
                     Toast.makeText(this, getString(R.string.brawler_found, brawlerString), Toast.LENGTH_LONG).show()
                     db.brawlerDao().insert(brawler.toEntity())
                     collectedBrawlersCount = db.brawlerDao().getBrawlersCount()
@@ -206,7 +202,7 @@ class MainActivity : ComponentActivity() {
 
     fun transformBarcodeToNumber(barcode: String): Int {
         val numericValue = barcode.hashCode()
-        return abs(numericValue) % 31 // This ensures the number is between 0 and 30, inclusive
+        return abs(numericValue) % 31
     }
 
 
@@ -231,59 +227,68 @@ class MainActivity : ComponentActivity() {
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
 fun MyApp(db: AppDatabase, collectedBrawlersCount: Int, checkAndRequestCameraPermission: () -> Unit, deleteAll: () -> Unit) {
-    val darkThemeEnabled = remember { mutableStateOf(false) } // Keep this state here
+    val darkThemeEnabled = remember { mutableStateOf(false) }
     val navController = rememberNavController()
     val items = listOf(BottomNavItem.Home, BottomNavItem.Collection, BottomNavItem.Settings)
-    BarcodeBrawlersTheme(
-        darkTheme = darkThemeEnabled.value,  // Use this to set theme
-        content = {
 
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(stringResource(id = R.string.app_name), textAlign = TextAlign.Start)
-                            }
-                        },
-                    )
-                },
-                bottomBar = {
-                    BottomNavigation {
-                        val currentRoute = currentRoute(navController)
-                        items.forEach { item ->
-                            BottomNavigationItem(
-                                icon = { Icon(item.icon, contentDescription = stringResource(id = item.labelResource)) },
-                                label = { Text(stringResource(id = item.labelResource)) },
-                                selected = currentRoute == item.route,
-                                onClick = {
-                                    navController.navigate(item.route) {
-                                        // Prevent multiple copies of the same destination
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
+    BarcodeBrawlersTheme(darkTheme = darkThemeEnabled.value) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(stringResource(id = R.string.app_name), textAlign = TextAlign.Start)
+                        }
+                    }
+                )
+            },
+            bottomBar = {
+                BottomNavigation {
+                    val currentRoute = currentRoute(navController)
+                    items.forEach { item ->
+                        BottomNavigationItem(
+                            icon = { Icon(item.icon, contentDescription = stringResource(id = item.labelResource)) },
+                            label = { Text(stringResource(id = item.labelResource)) },
+                            selected = currentRoute == item.route,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
                                     }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
+                            }
+                        )
+                    }
+                }
+            },
+            content = {
+                Box(modifier = Modifier.padding(bottom = 56.dp)) {
+                    NavHost(navController, startDestination = BottomNavItem.Home.route) {
+                        composable(BottomNavItem.Home.route) {
+                            Home(
+                                navController,
+                                collectedBrawlersCount,
+                                onScanClick = checkAndRequestCameraPermission
+                            )
+                        }
+                        composable(BottomNavItem.Collection.route) { Collection(navController, db) }
+                        composable(BottomNavItem.Settings.route) {
+                            SettingsScreen(
+                                darkThemeEnabled,
+                                db,
+                                deleteAll
                             )
                         }
                     }
                 }
-            ) {
-                NavHost(navController, startDestination = BottomNavItem.Home.route) {
-                    composable(BottomNavItem.Home.route) { Home(navController, collectedBrawlersCount, onScanClick = checkAndRequestCameraPermission) }
-                    composable(BottomNavItem.Collection.route) { Collection(navController, db) }
-                    composable(BottomNavItem.Settings.route) { SettingsScreen(darkThemeEnabled, db, deleteAll) }
-                }
-            }
-        }
-    )
+            })
+    }
 }
-
 @Composable
 fun currentRoute(navController: NavController): String? {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -358,6 +363,7 @@ fun SettingsScreen(
 ) {
     var inputText by remember { mutableStateOf("") }
     var isDialogVisible by remember { mutableStateOf(false) }
+    val deleteString = stringResource(id = R.string.delete )
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -392,27 +398,27 @@ fun SettingsScreen(
         if (isDialogVisible) {
             AlertDialog(
                 onDismissRequest = { isDialogVisible = false },
-                title = { Text("Delete All Confirmation") },
+                title = { Text(text = stringResource(id = R.string.delete_all_confirmation)) },
                 text = {
                     TextField(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        label = { Text("Enter 'delete' to confirm") }
+                        label = { Text(text = stringResource(id = R.string.enter_delete)) }
                     )
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            if (inputText == "delete") {
+                            if (inputText == deleteString) {
                                 db.brawlerDao().deleteAll()
                                 deleteAll()
                                 inputText = ""
                                 isDialogVisible = false
                             }
                         },
-                        enabled = inputText == "delete"
+                        enabled = inputText == deleteString
                     ) {
-                        Text("Confirm")
+                        Text(stringResource(id = R.string.confirm))
                     }
                 },
                 dismissButton = {
@@ -422,7 +428,7 @@ fun SettingsScreen(
                             inputText = ""
                         }
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(id = R.string.cancel))
                     }
                 }
             )
@@ -439,7 +445,7 @@ fun ThemeToggleSwitch(
         modifier = Modifier.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Dark Theme")
+        Text(stringResource(id = R.string.dark_mode))
         Switch(
             checked = isDarkTheme,
             onCheckedChange = onThemeChange

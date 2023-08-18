@@ -14,4 +14,9 @@
     <string name="collected_brawlers">Collected %1$d of %2$d Brawlers</string>
     <string name="dark_mode">Dark Theme</string>
     <string name="delete_all">Delete All Brawlers</string>
+    <string name="delete_all_confirmation">Delete All Confirmation</string>
+    <string name="enter_delete">Enter \'delete\' to confirm</string>
+    <string name="delete">delete</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
 </resources>
